@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ENet building</title>
+
+<style>
+.pagebutton{
+    height: 40px;
+    background: #1E90FF;
+    cursor: pointer;
+    outline: none;
+    font-family: Microsoft YaHei;
+    color: white;
+    width: 180px; 
+    font-size: 12px;
+}
+
+#skip{
+    height: 40px;
+    background: #1E90FF;
+    cursor: pointer;
+    outline: none;
+    font-family: Microsoft YaHei;
+    color: white;
+    width: 60px;
+    font-size: 12px;
+}
+
+button:hover { /* 鼠标移入按钮范围时改变颜色 */
+    background: #5599FF;
+}
+#ENetTable thead, #ENetTable tr {
+border-top-width: 1px;
+border-top-style: solid;
+border-top-color: rgb(230, 189, 189);
+}
+#ENetTable {
+border-bottom-width: 1px;
+border-bottom-style: solid;
+border-bottom-color: rgb(230, 189, 189);
+width : 100%;
+height: 500px;
+}
+
+#relation {
+    width : 60px;
+}
+
+#skipPage {
+    width: 30px;
+    height: 30px;
+}
+
+/* Padding and font style */
+#ENetTable td, #ENetTable th {
+padding: 5px 10px;
+font-size: 14px;
+/*weight:100px;*/
+font-family: Verdana;
+color: rgb(177, 106, 104);
+}
+
+#ENetTable th{
+    font-size: 16px;
+}
+
+/* Alternating background colors */
+#ENetTable tr:nth-child(even) {
+background: rgb(238, 211, 210)
+}
+#ENetTable tr:nth-child(odd) {
+background: #FFF
+}
+
+#ENetTable input{
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+}
+
+#skipdiv{
+    position: relative;
+    top: -40px;
+    width:200px;
+    height: 60px;
+}
+
+
+#Q, #A{
+    font-size: 15px;
+    /*weight:100px;*/
+    font-family: Verdana;
+}
+
+#pageinfo{
+    position: absolute;
+    right: 1px;
+}
+
+
+</style>
+
+<script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+<script type="text/javascript"> 
+
+    var createTable = function(){
+        var html = "<tr>\
+            <td id='event'><input type='text' value='' ></td>\
+            <td id='relation'><input type='text'  value='' ></td>\
+            <td id='inference'><input type='text' value='' ></td>\
+        </tr>";
+        $("#ENetTable").append("<tr>\
+                <th>event</th>\
+                <th>relation</th>\
+                <th>inference</th></tr>");
+        for (i = 0; i < 12; i++){
+            $("#ENetTable").append(html);
+        }
+
+    }
+
+    var initTable = function(){
+        createTable();
+
+        $("#ENet").append("<button onclick='lastPage()' class='pagebutton'>上一页</button>");
+        $("#ENet").append("<button onclick='SaveAction()' class='pagebutton'>保存并下一页</button>");
+
+        loadAction(0);
+    }
+
+    var SaveAction = function(){
+        // var csrf = $('input[name="csrfmiddlewaretoken"]').val();
+        var senddata = [];
+        $('#ENetTable tr').each(function(i){ //遍历 tr
+            senddata.push([]);
+            $(this).children('td').each(function(j){  // 遍历 tr 的各个 td
+                senddata[i][j] =$(this).children('input').val();
+            });
+        });
+        var page = $("#Nowpage").text();
+        $.ajax({
+            url: "/save",
+            type: "POST",        //请求类型
+            data: {
+                data : senddata,
+                page: page,
+            },
+            dataType: "json",   
+            success: function (data) {
+            },
+            error: function () {
+            }
+        });
+        nextPage();
+    }
+
+    var lastPage = function(){
+        var page = Number($("#Nowpage").text());
+        if(page>0){
+            $("#ENetTable").empty();
+            createTable();
+            loadAction(page-1);
+        }
+    }
+
+    var nextPage = function(){
+        $("#ENetTable").empty();
+        createTable();
+        var page = Number($("#Nowpage").text());
+        loadAction(page+1);
+    }
+
+    var skip = function(){
+        page = Number($("#skipPage").val());
+        if(page>=0){
+            $("#ENetTable").empty();
+            createTable();
+            loadAction(page);
+        }
+    }
+    var loadAction = function(page){
+        // var csrf = $('input[name="csrfmiddlewaretoken"]').val();
+        $.ajax({
+            url: "/load",
+            type: "POST",        //请求类型
+            data: {
+                page: page,
+                // 'csrfmiddlewaretoken': csrf
+            },
+            dataType: "json",   
+            success: function (data) {
+                $("#Q").text("Q: "+data["question"]);
+                $("#A").text("A: "+data["answer"]);
+                $("#Nowpage").text(data["Nowpage"])
+                if(data["ENet"].length == 0){
+                    $("#ENetTable").find('input').attr("value","");
+                }
+                $('#ENetTable tr').each(function(i){ //遍历 tr
+                    if(i>data["ENet"].length){
+                        $(this).find('input').attr("value","");
+                    }
+                    else if(i!=0){
+                        $(this).find('#event input')
+                            .attr("value",data["ENet"][i-1][0]);
+                        $(this).find('#relation input')
+                            .attr("value",data["ENet"][i-1][1]);
+                        $(this).find('#inference input')
+                            .attr("value",data["ENet"][i-1][2]); 
+                    }
+                });
+            },
+            error: function () {
+            }
+        });
+    }
+</script>
+
+</head>
+<body onload="initTable()">
+    <div id = "data">
+       <div id="Question">
+            <div id="Q"></div>
+        </div>
+        <div id="Answer">
+            <div id="A"></div>
+        </div>
+    </div>
+
+    <div id="pageinfo">
+        page: <span id="Nowpage"></span >
+    </div>
+
+    <center>
+    <div id="ENet">
+        <!-- {% csrf_token %} -->
+        <table id = "ENetTable"></table>
+    </div>
+    </center>
+    <div id="skipdiv">
+        <!-- {% csrf_token %} -->
+        <input type="text" id="skipPage">
+        <button onclick="skip()" id="skip">转到</button>
+    </div>
+</body>
+</html>
